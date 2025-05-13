@@ -1,0 +1,58 @@
+name: ci/cd
+
+on:
+  push:
+    branches: [ main ]
+
+env:
+  GCP_PROJECT: spy0-459703
+  REGION: us-central1
+  TIME_ZONE: America/Chicago
+  IMAGE: gcr.io/${{ env.GCP_PROJECT }}/spy-agent-trader:latest
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Authenticate to GCP
+      uses: google-github-actions/auth@v1
+      with:
+        credentials_json: ${{ secrets.GCP_SA_JSON }}
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v1
+      with:
+        project_id: ${{ env.GCP_PROJECT }}
+        service_account_key: ${{ secrets.GCP_SA_JSON }}
+
+    - name: Build & push container
+      run: |
+        gcloud builds submit . \
+          --tag $IMAGE \
+          --project $GCP_PROJECT
+
+    - name: Terraform init & apply
+      working-directory: infra
+      run: |
+        terraform init
+        terraform apply -auto-approve \
+          -var="project_id=$GCP_PROJECT" \
+          -var="region=$REGION" \
+          -var="time_zone=$TIME_ZONE" \
+          -var="image=$IMAGE" \
+          -var="openai_secret_name=OPENAI_API_KEY" \
+          -var="taapi_secret_name=TAAPI_TOKEN" \
+          -var="alpaca_key_secret_name=ALPACA_KEY_ID" \
+          -var="alpaca_secret_name=ALPACA_SECRET"
+
+    - name: Deploy to Cloud Run
+      run: |
+        gcloud run deploy spy-trader \
+          --image $IMAGE \
+          --region $REGION \
+          --allow-unauthenticated \
+          --project $GCP_PROJECT

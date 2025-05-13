@@ -1,66 +1,41 @@
-name: ci/cd
+name: app/cd
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
+    paths:
+      - 'app.py'
+      - 'flows/**'
+      - 'Dockerfile'
+      - 'requirements.txt'
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    env:
-      GCP_PROJECT: spy0-459703
-      REGION:    us-central1
-      TIME_ZONE: America/Chicago
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
     - name: Authenticate to GCP
       uses: google-github-actions/auth@v1
       with:
         credentials_json: ${{ secrets.GCP_SA_JSON }}
 
-    - name: Set up Cloud SDK
+    - name: Setup gcloud
       uses: google-github-actions/setup-gcloud@v1
       with:
-        project_id:         ${{ env.GCP_PROJECT }}
+        project_id: spy0-459703
         service_account_key: ${{ secrets.GCP_SA_JSON }}
 
-    - name: Define IMAGE
+    - name: Build & Push Container
       run: |
-        echo "IMAGE=gcr.io/${GCP_PROJECT}/spy-agent-trader:latest" >> $GITHUB_ENV
-
-    - name: Build & push container
-      run: |
-        echo "Building & pushing $IMAGE"
-        gcloud builds submit . \
-          --tag "$IMAGE" \
-          --project "$GCP_PROJECT"
-
-    - name: Set up Terraform
-      uses: hashicorp/setup-terraform@v2
-      with:
-        terraform_version: 1.5.7       # or whatever >=1.0 you need
-
-    - name: Terraform init & apply
-      working-directory: infra
-      run: |
-        terraform init
-        terraform apply -auto-approve \
-          -var="project_id=$GCP_PROJECT" \
-          -var="region=$REGION" \
-          -var="time_zone=$TIME_ZONE" \
-          -var="image=$IMAGE" \
-          -var="openai_secret_name=OPENAI_API_KEY" \
-          -var="taapi_secret_name=TAAPI_TOKEN" \
-          -var="alpaca_key_secret_name=ALPACA_KEY_ID" \
-          -var="alpaca_secret_name=ALPACA_SECRET"
+        IMAGE=gcr.io/spy0-459703/spy-agent-trader:latest
+        gcloud builds submit . --tag $IMAGE --project spy0-459703
 
     - name: Deploy to Cloud Run
       run: |
         gcloud run deploy spy-trader \
-          --image "$IMAGE" \
-          --region "$REGION" \
+          --image gcr.io/spy0-459703/spy-agent-trader:latest \
+          --region us-central1 \
           --allow-unauthenticated \
-          --project "$GCP_PROJECT"
+          --project spy0-459703

@@ -1,0 +1,10 @@
+flask
+gunicorn
+prefect
+gspread
+oauth2client
+autogen-agentchat
+autogen-ext
+requests
+google-cloud-secret-manager
+google-cloud-storage

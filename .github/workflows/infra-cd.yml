@@ -1,0 +1,39 @@
+name: infra/cd
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'infra/**'
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout infra code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SA_JSON }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.7
+
+      - name: Terraform Init & Apply
+        working-directory: infra
+        run: |
+          terraform init
+          terraform apply -auto-approve \
+            -var="project_id=spy0-459703" \
+            -var="region=us-central1" \
+            -var="time_zone=America/Chicago" \
+            -var="image=gcr.io/spy0-459703/spy-agent-trader:latest" \
+            -var="openai_secret_name=OPENAI_API_KEY" \
+            -var="taapi_secret_name=TAAPI_TOKEN" \
+            -var="alpaca_key_secret_name=ALPACA_KEY_ID" \
+            -var="alpaca_secret_name=ALPACA_SECRET"

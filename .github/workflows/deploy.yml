@@ -4,15 +4,13 @@ on:
   push:
     branches: [ main ]
 
-env:
-  GCP_PROJECT: spy0-459703
-  REGION: us-central1
-  TIME_ZONE: America/Chicago
-  IMAGE: gcr.io/${{ env.GCP_PROJECT }}/spy-agent-trader:latest
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      GCP_PROJECT: spy0-459703
+      REGION:    us-central1
+      TIME_ZONE: America/Chicago
 
     steps:
     - name: Checkout code
@@ -26,14 +24,19 @@ jobs:
     - name: Set up Cloud SDK
       uses: google-github-actions/setup-gcloud@v1
       with:
-        project_id: ${{ env.GCP_PROJECT }}
+        project_id:     ${{ env.GCP_PROJECT }}
         service_account_key: ${{ secrets.GCP_SA_JSON }}
+
+    - name: Define IMAGE
+      run: |
+        echo "IMAGE=gcr.io/${GCP_PROJECT}/spy-agent-trader:latest" >> $GITHUB_ENV
 
     - name: Build & push container
       run: |
+        echo "Building & pushing $IMAGE"
         gcloud builds submit . \
-          --tag $IMAGE \
-          --project $GCP_PROJECT
+          --tag "$IMAGE" \
+          --project "$GCP_PROJECT"
 
     - name: Terraform init & apply
       working-directory: infra
@@ -52,7 +55,7 @@ jobs:
     - name: Deploy to Cloud Run
       run: |
         gcloud run deploy spy-trader \
-          --image $IMAGE \
-          --region $REGION \
+          --image "$IMAGE" \
+          --region "$REGION" \
           --allow-unauthenticated \
-          --project $GCP_PROJECT
+          --project "$GCP_PROJECT"

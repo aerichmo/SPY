@@ -24,7 +24,7 @@ jobs:
     - name: Set up Cloud SDK
       uses: google-github-actions/setup-gcloud@v1
       with:
-        project_id:     ${{ env.GCP_PROJECT }}
+        project_id:         ${{ env.GCP_PROJECT }}
         service_account_key: ${{ secrets.GCP_SA_JSON }}
 
     - name: Define IMAGE
@@ -37,6 +37,11 @@ jobs:
         gcloud builds submit . \
           --tag "$IMAGE" \
           --project "$GCP_PROJECT"
+
+    - name: Set up Terraform
+      uses: hashicorp/setup-terraform@v2
+      with:
+        terraform_version: 1.5.7       # or whatever >=1.0 you need
 
     - name: Terraform init & apply
       working-directory: infra
